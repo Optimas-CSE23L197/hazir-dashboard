@@ -1,0 +1,300 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Tailwind v4 theme mapping — shadcn colors ko register karta hai
+   Iske bina bg-card, bg-muted, border-border etc transparent ho jaate hain
+   ============================================================ */
+@theme inline {
+  /* Surfaces */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  /* Brand */
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  /* Neutrals */
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  /* Semantic */
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  /* Status */
+  --color-present: hsl(var(--present));
+  --color-present-bg: hsl(var(--present-bg));
+  --color-present-border: hsl(var(--present-border));
+  --color-present-fg: hsl(var(--present-fg));
+
+  --color-late: hsl(var(--late));
+  --color-late-bg: hsl(var(--late-bg));
+  --color-late-border: hsl(var(--late-border));
+  --color-late-fg: hsl(var(--late-fg));
+
+  --color-absent: hsl(var(--absent));
+  --color-absent-bg: hsl(var(--absent-bg));
+  --color-absent-border: hsl(var(--absent-border));
+  --color-absent-fg: hsl(var(--absent-fg));
+
+  --color-info: hsl(var(--info));
+  --color-info-bg: hsl(var(--info-bg));
+  --color-info-border: hsl(var(--info-border));
+  --color-info-fg: hsl(var(--info-fg));
+
+  /* Borders & inputs */
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  /* Sidebar */
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-muted: hsl(var(--sidebar-muted));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+
+  /* Radii */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-button: var(--radius-button);
+}
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --background: 0 0% 96%; /* #F5F5F5 — bg ko thoda gray kiya taaki cards pop karein */
+    --foreground: 222 47% 11%; /* #111827 */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Brand */
+    --primary: 243 75% 59%; /* #4F46E5 */
+    --primary-foreground: 0 0% 100%;
+
+    /* Neutrals */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%; /* #6B7280 */
+    --muted-soft: 218 11% 65%; /* #9CA3AF */
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    /* Semantic */
+    --destructive: 0 84% 60%; /* #EF4444 */
+    --destructive-foreground: 0 0% 100%;
+
+    /* Status — solid only, no gradients */
+    --present: 160 84% 39%; /* #10B981 */
+    --present-bg: 152 81% 96%; /* #ECFDF5 */
+    --present-border: 152 76% 80%; /* #A7F3D0 */
+    --present-fg: 162 94% 24%; /* #047857 */
+
+    --late: 38 92% 50%; /* #F59E0B */
+    --late-bg: 48 100% 96%; /* #FFFBEB */
+    --late-border: 46 97% 77%; /* #FDE68A */
+    --late-fg: 26 90% 37%; /* #B45309 */
+
+    --absent: 0 84% 60%; /* #EF4444 */
+    --absent-bg: 0 86% 97%; /* #FEF2F2 */
+    --absent-border: 0 94% 89%; /* #FECACA */
+    --absent-fg: 0 74% 42%; /* #B91C1C */
+
+    --info: 239 84% 67%; /* #6366F1 */
+    --info-bg: 226 100% 97%; /* #EEF2FF */
+    --info-border: 228 96% 89%; /* #C7D2FE */
+    --info-fg: 244 55% 51%; /* #4338CA */
+
+    /* Borders & inputs */
+    --border: 220 13% 91%; /* #E5E7EB */
+    --input: 220 13% 91%;
+    --ring: 243 75% 59%; /* #4F46E5 */
+
+    /* Sidebar — solid dark, no gradient */
+    --sidebar: 222 47% 11%; /* #0F172A */
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-muted: 215 20% 65%;
+    --sidebar-border: 217 33% 17%;
+
+    /* Radii — cards 12px, buttons 8px */
+    --radius: 0.75rem; /* 12px — cards, inputs, modals */
+    --radius-button: 0.5rem; /* 8px  — buttons, badges */
+    --radius-full: 9999px; /* avatars only */
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+  }
+  h3 {
+    font-size: 16px;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@layer utilities {
+  /* ---------- Status surfaces (solid, labeled) ---------- */
+  .status-present {
+    background-color: hsl(var(--present-bg));
+    border: 1px solid hsl(var(--present-border));
+    color: hsl(var(--present-fg));
+  }
+  .status-late {
+    background-color: hsl(var(--late-bg));
+    border: 1px solid hsl(var(--late-border));
+    color: hsl(var(--late-fg));
+  }
+  .status-absent {
+    background-color: hsl(var(--absent-bg));
+    border: 1px solid hsl(var(--absent-border));
+    color: hsl(var(--absent-fg));
+  }
+  .status-info {
+    background-color: hsl(var(--info-bg));
+    border: 1px solid hsl(var(--info-border));
+    color: hsl(var(--info-fg));
+  }
+
+  /* Dot indicators for status (paired with label, never alone) */
+  .dot-present {
+    background-color: hsl(var(--present));
+  }
+  .dot-late {
+    background-color: hsl(var(--late));
+  }
+  .dot-absent {
+    background-color: hsl(var(--absent));
+  }
+  .dot-info {
+    background-color: hsl(var(--info));
+  }
+
+  /* ---------- Shadows (shadow-sm only) ---------- */
+  .card-shadow {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  }
+  /* NOTE: .card-shadow-hover intentionally removed.
+     Cards use border-color change on hover, not shadow. */
+
+  /* ---------- Sidebar (solid, no gradient) ---------- */
+  .sidebar-dark {
+    background-color: hsl(var(--sidebar));
+    color: hsl(var(--sidebar-foreground));
+    border-right: 1px solid hsl(var(--sidebar-border));
+  }
+  .sidebar-light {
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+    border-right: 1px solid hsl(var(--border));
+  }
+
+  /* ---------- Layout helpers ---------- */
+  .content-max {
+    max-width: 1400px;
+    margin-inline: auto;
+  }
+  .page-padding {
+    padding: 24px;
+  }
+  @media (min-width: 1024px) {
+    .page-padding {
+      padding: 32px;
+    }
+  }
+
+  /* ---------- Number display (KPIs) ---------- */
+  .kpi-value {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  /* ---------- Hover row ---------- */
+  .row-hover:hover {
+    background-color: hsl(var(--background));
+  }
+
+  /* ---------- Motion (subtle only) ---------- */
+  .transition-base {
+    transition-property: color, background-color, border-color, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
