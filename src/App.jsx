@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from '#/components/layout/DashboardLayout'
 import AdminDashboardLayout from '#/components/layout/AdminDashboardLayout'
 import Landing from '#/pages/Landing'
+import GetStarted from './pages/GetStarted'
 import Login from '#/pages/auth/Login'
 import Overview from '#/pages/Overview'
 import Employees from '#/pages/Employees'
@@ -63,6 +64,7 @@ export default function App() {
         <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />
+            <Route path='/get-started' element={<GetStarted />} />
             <Route path="/login" element={<Login />} />
 
             {/* ───────── Company Dashboard ───────── */}

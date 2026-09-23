@@ -1,11 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
-    Bell, Search, LogOut, ChevronDown, HelpCircle, Menu,
-    User, Building2, CreditCard,
+    Bell,
+    Search,
+    LogOut,
+    ChevronDown,
+    HelpCircle,
+    Menu,
+    User,
+    Building2,
+    CreditCard,
 } from 'lucide-react'
 import { useAuthStore } from '#/stores/authStore'
 import { useUIStore } from '#/stores/uiStore'
-import { Input } from '#/components/ui/input'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -14,144 +21,217 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '#/components/ui/avatar'
 
-export default function Topbar() {
+// Route → page title. Falls back to a title-cased last path segment.
+const TITLES = {
+    overview: 'Dashboard',
+    'live-map': 'Live Map',
+    employees: 'Employees',
+    attendance: 'Attendance',
+    leave: 'Leave',
+    payroll: 'Payroll',
+    departments: 'Departments',
+    shifts: 'Shifts',
+    holidays: 'Holidays',
+    zones: 'Zones',
+    announcements: 'Announcements',
+    analytics: 'Analytics',
+    reports: 'Reports',
+    audit: 'Audit Log',
+    settings: 'Company Settings',
+    roles: 'Roles & Permissions',
+    billing: 'Billing',
+}
+
+function titleFor(pathname) {
+    const seg = pathname.split('/').filter(Boolean)[1] // /app/<seg>
+    if (!seg) return 'Dashboard'
+    return TITLES[seg] || seg.replace(/-/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
+}
+
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+
+/**
+ * @param {{ unread?: number }} props
+ * `unread` is optional. Pass your real notification count; the dot and
+ * pulse only show when it is > 0.
+ */
+export default function Topbar({ unread = 0 }) {
     const user = useAuthStore((s) => s.user)
     const tenant = useAuthStore((s) => s.tenant)
     const logout = useAuthStore((s) => s.logout)
     const toggleSidebar = useUIStore((s) => s.toggleSidebar)
 
+    const navigate = useNavigate()
+    const { pathname } = useLocation()
+    const searchRef = useRef(null)
+    const [q, setQ] = useState('')
+
     const initials =
         user?.name
             ?.split(' ')
+            .filter(Boolean)
             .map((n) => n[0])
             .join('')
+            .slice(0, 2)
             .toUpperCase() || 'A'
 
-    // Ctrl/Cmd + K → focus search
+    // Ctrl/Cmd + K focuses search. Esc leaves it.
     useEffect(() => {
         const onKey = (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault()
-                document.getElementById('global-search')?.focus()
+                searchRef.current?.focus()
+                searchRef.current?.select()
             }
         }
         window.addEventListener('keydown', onKey)
         return () => window.removeEventListener('keydown', onKey)
     }, [])
 
+    const onSearchKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            e.currentTarget.blur()
+        }
+    }
+
+    const onSearchSubmit = (e) => {
+        e.preventDefault()
+        const term = q.trim()
+        if (!term) return
+        navigate(`/app/employees?q=${encodeURIComponent(term)}`)
+        searchRef.current?.blur()
+    }
+
+    const iconBtn =
+        'relative grid place-items-center w-9 h-9 rounded-[10px] text-[var(--ink-3)] hover:text-[var(--ink)] hover:bg-[var(--paper)] transition-colors'
+
+    // NOTE: DropdownMenuContent renders in a portal on <body>, outside .hz-app,
+    // so CSS variables are not guaranteed there. Use literal colours inside it.
+    const menuItem =
+        'gap-2.5 h-9 px-2.5 rounded-[8px] text-[14px] text-[#33423B] cursor-pointer focus:bg-[#F7F6F2] focus:text-[#0E1B16]'
+
     return (
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between gap-4 px-4 lg:px-6 shrink-0 sticky top-0 z-30">
-
+        <header className="h-16 bg-white border-b border-[var(--line)] flex items-center justify-between gap-4 px-4 lg:px-6 shrink-0 sticky top-0 z-30">
             {/* ───────── Left ───────── */}
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-
-                {/* Hamburger — mobile only */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+                {/* Hamburger, mobile only */}
                 <button
                     type="button"
                     onClick={toggleSidebar}
-                    className="lg:hidden p-2 -ml-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20"
+                    className={`${iconBtn} lg:hidden -ml-2`}
                     aria-label="Open sidebar"
                 >
                     <Menu className="w-5 h-5" strokeWidth={2} />
                 </button>
 
+                {/* Page title, desktop */}
+                <h1 className="display hidden xl:block text-[20px] font-bold text-[var(--ink)] whitespace-nowrap pr-3 mr-1 border-r border-[var(--line)]">
+                    {titleFor(pathname)}
+                </h1>
+
                 {/* Search */}
-                <div className="relative w-full max-w-md">
+                <form onSubmit={onSearchSubmit} role="search" className="relative w-full max-w-[420px]">
                     <Search
-                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--ink-3)] pointer-events-none"
                         strokeWidth={2}
                     />
-                    <Input
+                    <input
+                        ref={searchRef}
                         id="global-search"
-                        placeholder="Search employees, reports..."
-                        className="pl-10 pr-3 sm:pr-16 h-9 text-sm bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-indigo-500/20 focus-visible:border-indigo-500"
+                        type="search"
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        onKeyDown={onSearchKeyDown}
+                        placeholder="Search employees…"
+                        aria-label="Search employees"
+                        className="w-full h-10 pl-10 pr-3 sm:pr-16 rounded-[10px] text-[14px] text-[var(--ink)] placeholder:text-[#9AA59F] bg-[var(--paper)] border border-transparent outline-none transition-colors hover:border-[var(--line)] focus:bg-white focus:border-[var(--ink)] focus:ring-2 focus:ring-[var(--green)]/25 [&::-webkit-search-cancel-button]:hidden"
                     />
-                    <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
-                        Ctrl K
+                    <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center h-6 px-1.5 text-[11px] font-medium text-[var(--ink-3)] bg-white border border-[var(--line)] rounded-md pointer-events-none">
+                        {isMac ? '⌘ K' : 'Ctrl K'}
                     </kbd>
-                </div>
+                </form>
             </div>
 
             {/* ───────── Right ───────── */}
             <div className="flex items-center gap-1 shrink-0">
-
-                <button
-                    type="button"
-                    className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20"
-                    aria-label="Help"
-                >
-                    <HelpCircle className="w-5 h-5" strokeWidth={2} />
+                <button type="button" className={iconBtn} aria-label="Help">
+                    <HelpCircle className="w-[19px] h-[19px]" strokeWidth={2} />
                 </button>
 
                 <button
                     type="button"
-                    className="relative p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20"
-                    aria-label="Notifications"
+                    className={iconBtn}
+                    aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
                 >
-                    <Bell className="w-5 h-5" strokeWidth={2} />
-                    <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
-                    </span>
+                    <Bell className="w-[19px] h-[19px]" strokeWidth={2} />
+                    {unread > 0 && (
+                        <span className="absolute top-2 right-2 flex h-2 w-2" aria-hidden="true">
+                            <span className="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--red)] opacity-60" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--red)] ring-2 ring-white" />
+                        </span>
+                    )}
                 </button>
 
-                <div className="w-px h-6 bg-slate-200 mx-2" aria-hidden="true" />
+                <div className="w-px h-6 bg-[var(--line)] mx-2" aria-hidden="true" />
 
-                {/* User Menu */}
+                {/* User menu */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <button
                             type="button"
-                            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-slate-100 data-[state=open]:bg-slate-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20"
+                            className="flex items-center gap-2.5 pl-1 pr-2 h-11 rounded-[10px] hover:bg-[var(--paper)] data-[state=open]:bg-[var(--paper)] transition-colors"
+                            aria-label="Account menu"
                         >
-                            <Avatar className="w-8 h-8">
-                                <AvatarFallback className="bg-indigo-600 text-white text-xs font-semibold">
-                                    {initials}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="text-left hidden md:block max-w-[140px]">
-                                <p className="text-sm font-medium text-slate-900 leading-tight truncate">
+                            <span className="grid place-items-center w-8 h-8 rounded-full bg-[var(--ink)] text-white text-[12px] font-semibold shrink-0">
+                                {initials}
+                            </span>
+                            <span className="text-left hidden md:block max-w-[150px]">
+                                <span className="block text-[13.5px] font-semibold text-[var(--ink)] leading-tight truncate">
                                     {user?.name || 'User'}
-                                </p>
-                                <p className="text-[11px] text-slate-500 leading-tight truncate">
+                                </span>
+                                <span className="block text-[12px] text-[var(--ink-3)] leading-tight mt-0.5 truncate">
                                     {tenant?.name || 'Workspace'}
-                                </p>
-                            </div>
-                            <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" strokeWidth={2} />
+                                </span>
+                            </span>
+                            <ChevronDown className="w-4 h-4 text-[var(--ink-3)] hidden md:block" strokeWidth={2} />
                         </button>
                     </DropdownMenuTrigger>
 
-                    <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuLabel>
-                            <p className="text-sm font-medium text-slate-900 truncate">
-                                {user?.name || 'User'}
-                            </p>
-                            <p className="text-xs text-slate-500 font-normal mt-0.5 truncate">
+                    <DropdownMenuContent
+                        align="end"
+                        sideOffset={8}
+                        className="w-60 p-1.5 rounded-[14px] border-[#E3E1DA] bg-white text-[#0E1B16] shadow-[0_20px_40px_-16px_rgba(14,27,22,.25)]"
+                    >
+                        <DropdownMenuLabel className="px-2.5 py-2">
+                            <p className="text-[14px] font-semibold text-[#0E1B16] truncate">{user?.name || 'User'}</p>
+                            <p className="text-[12.5px] text-[#66746D] font-normal mt-0.5 truncate">
                                 {user?.email || 'user@example.com'}
                             </p>
                         </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="gap-2 cursor-pointer">
-                            <User className="w-4 h-4 text-slate-400" strokeWidth={2} />
+                        <DropdownMenuSeparator className="bg-[#E3E1DA]" />
+
+                        <DropdownMenuItem className={menuItem} onSelect={() => navigate('/app/settings')}>
+                            <User className="w-4 h-4 text-[#66746D]" strokeWidth={2} />
                             Profile
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 cursor-pointer">
-                            <Building2 className="w-4 h-4 text-slate-400" strokeWidth={2} />
+                        <DropdownMenuItem className={menuItem} onSelect={() => navigate('/app/settings')}>
+                            <Building2 className="w-4 h-4 text-[#66746D]" strokeWidth={2} />
                             Company settings
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 cursor-pointer">
-                            <CreditCard className="w-4 h-4 text-slate-400" strokeWidth={2} />
+                        <DropdownMenuItem className={menuItem} onSelect={() => navigate('/app/billing')}>
+                            <CreditCard className="w-4 h-4 text-[#66746D]" strokeWidth={2} />
                             Billing
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+
+                        <DropdownMenuSeparator className="bg-[#E3E1DA]" />
+
                         <DropdownMenuItem
-                            className="gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
-                            onClick={() => logout()}
+                            className="gap-2.5 h-9 px-2.5 rounded-[8px] text-[14px] text-[#E5484D] cursor-pointer focus:bg-[#FDECEC] focus:text-[#E5484D]"
+                            onSelect={() => logout()}
                         >
                             <LogOut className="w-4 h-4" strokeWidth={2} />
-                            Logout
+                            Log out
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

@@ -1,825 +1,1055 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-    MapPin,
-    MapPinned,
-    ScanFace,
-    Route,
-    Wallet,
-    CalendarDays,
-    BarChart3,
-    Check,
-    X,
     ArrowRight,
-    Play,
-    Shield,
-    Star,
-    ChevronDown,
+    Check,
     Menu,
-    Phone,
-    Globe,
-    Sparkles,
-    Building2,
-    Mail
+    X,
+    Route,
+    ScanFace,
+    CalendarDays,
+    Minus,
+    Plus,
+    WifiOff,
+    ShieldCheck,
+    Smartphone,
+    FileSpreadsheet,
+    Fingerprint,
+    Zap,
 } from 'lucide-react'
-import { Button } from '#/components/ui/button'
-import { Badge } from '#/components/ui/badge'
 
-// ═══════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+// FONTS + BASE STYLES (scoped to this page)
+// ─────────────────────────────────────────────────────────────
+
+const PageStyles = () => (
+    <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap');
+
+    .hz {
+      --ink: #0E1B16;
+      --ink-2: #33423B;
+      --ink-3: #66746D;
+      --paper: #F7F6F2;
+      --card: #FFFFFF;
+      --line: #E3E1DA;
+      --green: #0E9F6E;
+      --green-deep: #0A6B4A;
+      --green-soft: #E3F4EC;
+      --amber: #F5A524;
+      --amber-soft: #FDF1DA;
+      --red: #E5484D;
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      -webkit-font-smoothing: antialiased;
+    }
+    .hz .display { font-family: 'Bricolage Grotesque', 'Inter', sans-serif; letter-spacing: -0.025em; }
+    .hz .tnum { font-variant-numeric: tabular-nums; }
+    .hz a:focus-visible, .hz button:focus-visible {
+      outline: 2px solid var(--green); outline-offset: 2px; border-radius: 8px;
+    }
+    .hz .grid-bg {
+      background-image:
+        linear-gradient(to right, rgba(14,27,22,.045) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(14,27,22,.045) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+      -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+    }
+    .hz .dark-grid {
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    /* hero board animations, one orchestrated moment */
+    @keyframes hz-pin-pulse {
+      0% { transform: scale(1); opacity: .55; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
+    @keyframes hz-draw { to { stroke-dashoffset: 0; } }
+    @keyframes hz-feed-in {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .hz-pulse::after {
+      content: ''; position: absolute; inset: 0; border-radius: 9999px;
+      background: var(--green); animation: hz-pin-pulse 2.2s ease-out infinite;
+    }
+    .hz-route { stroke-dasharray: 520; stroke-dashoffset: 520; animation: hz-draw 3.2s .4s ease-out forwards; }
+    .hz-feed-item { animation: hz-feed-in .45s ease-out both; }
+
+    /* face scan */
+    @keyframes hz-scan {
+      0%   { top: 6%;  opacity: 0; }
+      8%   { opacity: 1; }
+      50%  { top: 92%; opacity: 1; }
+      58%  { opacity: 0; }
+      100% { top: 92%; opacity: 0; }
+    }
+    @keyframes hz-mesh {
+      0%, 12%  { opacity: 0; }
+      30%, 62% { opacity: 1; }
+      78%, 100%{ opacity: 0; }
+    }
+    @keyframes hz-verify {
+      0%, 60%  { opacity: 0; transform: translateY(8px) scale(.96); }
+      70%, 92% { opacity: 1; transform: translateY(0) scale(1); }
+      100%     { opacity: 0; transform: translateY(0) scale(1); }
+    }
+    @keyframes hz-brackets {
+      0%, 55%  { border-color: rgba(255,255,255,.55); }
+      66%, 92% { border-color: var(--green); }
+      100%     { border-color: rgba(255,255,255,.55); }
+    }
+    .hz-scan-line { animation: hz-scan 4.4s ease-in-out infinite; }
+    .hz-mesh      { animation: hz-mesh 4.4s ease-in-out infinite; }
+    .hz-verify    { animation: hz-verify 4.4s ease-out infinite; }
+    .hz-bracket   { animation: hz-brackets 4.4s ease-in-out infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .hz-pulse::after, .hz-route, .hz-feed-item,
+      .hz-scan-line, .hz-mesh, .hz-verify, .hz-bracket { animation: none !important; }
+      .hz-route { stroke-dashoffset: 0; }
+      .hz-scan-line { display: none; }
+      .hz-mesh { opacity: 1; }
+      .hz-verify { opacity: 1; }
+      .hz-bracket { border-color: var(--green); }
+    }
+  `}</style>
+)
+
+// ─────────────────────────────────────────────────────────────
 // DATA
-// ═══════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
 
-const features = [
-    {
-        icon: ScanFace,
-        title: 'AI Face Attendance',
-        desc: 'Contactless, spoof-proof attendance with face recognition. Works offline, syncs when online. No more buddy punching.',
-        bg: 'bg-indigo-50',
-        color: 'text-indigo-600',
-        highlight: 'AI-powered',
-    },
-    {
-        icon: Route,
-        title: 'Live Route Tracking',
-        desc: 'Track your field team in real-time. See routes, stops, and time spent at each location. Optimize field operations.',
-        bg: 'bg-emerald-50',
-        color: 'text-emerald-600',
-        highlight: 'Real-time GPS',
-    },
-    {
-        icon: MapPinned,
-        title: 'Geofence Zones',
-        desc: 'Define work zones with GPS boundaries. Auto-mark attendance when employees enter/exit zones. Get violation alerts.',
-        bg: 'bg-amber-50',
-        color: 'text-amber-600',
-        highlight: 'Location intelligence',
-    },
-    {
-        icon: Wallet,
-        title: 'Automated Payroll',
-        desc: 'Attendance to salary in one click. Handles overtime, deductions, PF, ESI, TDS. Generates payslips instantly.',
-        bg: 'bg-purple-50',
-        color: 'text-purple-600',
-        highlight: 'Zero manual work',
-    },
-    {
-        icon: CalendarDays,
-        title: 'Leave Management',
-        desc: 'Employee self-service leave applications, manager approvals, balance tracking, and calendar integration.',
-        bg: 'bg-rose-50',
-        color: 'text-rose-600',
-        highlight: 'Self-service',
-    },
-    {
-        icon: BarChart3,
-        title: 'Analytics & Reports',
-        desc: 'Attendance trends, department breakdowns, violation reports, payroll summaries — all exportable to Excel/PDF.',
-        bg: 'bg-cyan-50',
-        color: 'text-cyan-600',
-        highlight: 'Insights that matter',
-    },
-]
-
-const howItWorks = [
-    {
-        step: '01',
-        title: 'Sign up your company',
-        desc: 'Create your workspace in 2 minutes. Add departments, shifts, and zones.',
-    },
-    {
-        step: '02',
-        title: 'Onboard your team',
-        desc: 'Import employees via CSV or add manually. Assign shifts, zones, and roles.',
-    },
-    {
-        step: '03',
-        title: 'Start tracking',
-        desc: 'Employees mark attendance via face recognition. You see live routes and attendance.',
-    },
-    {
-        step: '04',
-        title: 'Run payroll',
-        desc: 'One-click payroll at month-end. Auto-calculates everything from attendance data.',
-    },
-]
+const YEARLY_MONTHS_PAID = 10 // 2 months free
 
 const plans = [
     {
-        id: 'free',
-        name: 'Free',
-        tagline: 'For small teams getting started',
-        monthlyPrice: 0,
-        yearlyPrice: 0,
-        maxEmployees: 5,
-        popular: false,
-        cta: 'Get started free',
-        features: [
-            { name: 'Up to 5 employees', included: true },
-            { name: 'Basic attendance marking', included: true },
-            { name: 'Leave management', included: true },
-            { name: '1 work zone', included: true },
-            { name: 'Basic reports', included: true },
-            { name: 'AI face recognition', included: false },
-            { name: 'Route tracking', included: false },
-            { name: 'Automated payroll', included: false },
-            { name: 'Priority support', included: false },
+        id: 'starter',
+        name: 'Starter',
+        for: 'Shop, clinic or small team',
+        monthly: 999,
+        employees: 10,
+        zones: '2 work zones',
+        cta: 'Start free trial',
+        includes: [
+            'Up to 10 employees',
+            'AI face attendance',
+            'Leave management',
+            '2 work zones',
+            'Payslips + PF / ESI',
+            'Basic reports',
         ],
     },
     {
-        id: 'starter',
-        name: 'Starter',
-        tagline: 'For growing small businesses',
-        monthlyPrice: 999,
-        yearlyPrice: 9990,
-        maxEmployees: 25,
-        popular: false,
+        id: 'growth',
+        name: 'Growth',
+        for: 'Growing teams, 2–3 branches',
+        monthly: 2499,
+        employees: 30,
+        zones: '5 work zones',
         cta: 'Start free trial',
-        features: [
-            { name: 'Up to 25 employees', included: true },
-            { name: 'AI face attendance', included: true },
-            { name: 'Leave management', included: true },
-            { name: '3 work zones', included: true },
-            { name: 'Automated payroll', included: true },
-            { name: 'Basic reports', included: true },
-            { name: 'Route tracking', included: false },
-            { name: 'Advanced analytics', included: false },
-            { name: 'Priority support', included: false },
+        includes: [
+            'Up to 30 employees',
+            'Everything in Starter',
+            'Automated payroll + TDS',
+            '5 work zones',
+            'Shift & overtime rules',
+            'Email support',
         ],
     },
     {
         id: 'pro',
         name: 'Pro',
-        tagline: 'Best for field workforce',
-        monthlyPrice: 2999,
-        yearlyPrice: 29990,
-        maxEmployees: 100,
+        for: 'Field teams on the road',
+        monthly: 5999,
+        employees: 100,
         popular: true,
+        zones: 'Unlimited zones',
         cta: 'Start free trial',
-        features: [
-            { name: 'Up to 100 employees', included: true },
-            { name: 'AI face attendance', included: true },
-            { name: 'Live route tracking', included: true },
-            { name: 'Unlimited zones', included: true },
-            { name: 'Automated payroll', included: true },
-            { name: 'Advanced analytics', included: true },
-            { name: 'Geofence alerts', included: true },
-            { name: 'Email support', included: true },
-            { name: 'Priority support', included: false },
+        includes: [
+            'Up to 100 employees',
+            'Everything in Growth',
+            'Live route tracking',
+            'Geofence violation alerts',
+            'Unlimited zones',
+            'Advanced analytics',
         ],
     },
     {
         id: 'business',
         name: 'Business',
-        tagline: 'For mid-market companies',
-        monthlyPrice: 7999,
-        yearlyPrice: 79990,
-        maxEmployees: 500,
-        popular: false,
+        for: 'Multi-city operations',
+        monthly: 12999,
+        employees: 500,
+        zones: 'Unlimited zones',
         cta: 'Start free trial',
-        features: [
-            { name: 'Up to 500 employees', included: true },
-            { name: 'AI face attendance', included: true },
-            { name: 'Live route tracking', included: true },
-            { name: 'Unlimited zones', included: true },
-            { name: 'Automated payroll', included: true },
-            { name: 'Advanced analytics', included: true },
-            { name: 'Geofence alerts', included: true },
-            { name: 'Priority support', included: true },
-            { name: 'API access', included: false },
+        includes: [
+            'Up to 500 employees',
+            'Everything in Pro',
+            'Multi-branch hierarchy',
+            'Role-based access',
+            'API access',
+            'Priority support',
         ],
     },
     {
         id: 'enterprise',
         name: 'Enterprise',
-        tagline: 'For large organizations',
-        monthlyPrice: null,
-        yearlyPrice: null,
-        maxEmployees: null,
-        popular: false,
-        cta: 'Contact sales',
-        features: [
-            { name: 'Unlimited employees', included: true },
-            { name: 'AI face attendance', included: true },
-            { name: 'Live route tracking', included: true },
-            { name: 'Unlimited zones', included: true },
-            { name: 'Automated payroll', included: true },
-            { name: 'Advanced analytics', included: true },
-            { name: 'Geofence alerts', included: true },
-            { name: 'Dedicated support', included: true },
-            { name: 'Custom integrations', included: true },
+        for: 'Large organisations',
+        monthly: null,
+        employees: null,
+        cta: 'Talk to sales',
+        includes: [
+            'Unlimited employees',
+            'Everything in Business',
+            'Custom integrations',
+            'SSO + audit logs',
+            'Dedicated account manager',
+            'SLA-backed support',
         ],
-    },
-]
-
-const testimonials = [
-    {
-        quote: 'Hazir cut our payroll processing time from 3 days to 30 minutes. The face attendance works flawlessly even in rural areas.',
-        name: 'Rajesh Kumar',
-        role: 'HR Head, Swift Logistics',
-        initials: 'RK',
-    },
-    {
-        quote: 'The live route tracking is a game-changer. We finally know where our field team actually is. Saved 20% on fuel costs.',
-        name: 'Priya Sharma',
-        role: 'Operations Manager, MetroCourier',
-        initials: 'PS',
-    },
-    {
-        quote: 'Setup took 1 day. Our 200+ field workers were onboarded without any training. The UI is that simple.',
-        name: 'Amit Patel',
-        role: 'Founder, GreenField Services',
-        initials: 'AP',
     },
 ]
 
 const faqs = [
     {
         q: 'How does AI face attendance work?',
-        a: 'Our AI uses advanced facial recognition that works offline. Employees just look at their phone camera, and attendance is marked in under 2 seconds. It works with masks, glasses, and in low light. Anti-spoofing prevents photo/video fraud.',
+        a: 'The employee looks at the phone camera and attendance is marked in under two seconds. A liveness check stops photo and video fraud, so nobody can mark attendance for someone else. It works offline too and syncs when the phone reconnects.',
     },
     {
-        q: 'Does route tracking work without internet?',
-        a: 'Yes! The mobile app caches GPS data offline and syncs automatically when the device reconnects. You never lose a single data point.',
-    },
-    {
-        q: 'Is my company data secure?',
-        a: 'Absolutely. All data is encrypted in transit (TLS 1.3) and at rest (AES-256). We are ISO 27001 and SOC 2 compliant. Data is stored in Indian data centers. We never share your data with third parties.',
-    },
-    {
-        q: 'Can I import my existing employee data?',
-        a: 'Yes, you can import employees via CSV/Excel in bulk. We also support API-based imports and integration with popular HR tools.',
+        q: 'Does route tracking work offline?',
+        a: 'Yes. The app stores GPS points on the phone and syncs them as soon as the network is available. No point in between is missed.',
     },
     {
         q: 'What happens after the free trial?',
-        a: 'You get full access for 14 days without a credit card. After the trial, you can continue on our Free plan (up to 5 employees) or upgrade to a paid plan. No hidden charges.',
+        a: '14 days free without a credit card. When the trial ends, you can choose any paid plan. If you do not choose a plan, the account becomes read-only and your data is not deleted.',
     },
     {
-        q: 'Do you offer a mobile app?',
-        a: 'Yes! We have native Android and iOS apps for both field employees (mark attendance, track routes) and managers (approvals, live map). Web dashboard is available for admin tasks.',
+        q: 'Can I import old employee data?',
+        a: 'Bulk import from CSV or Excel. Download the template from the dashboard, fill in the columns and upload.',
+    },
+    {
+        q: 'What is calculated in payroll?',
+        a: 'Attendance, overtime, late marks, leave deduction, PF, ESI and TDS. Payslips are generated in one click at month-end.',
     },
     {
         q: 'Can I cancel anytime?',
-        a: 'Yes. No lock-in, no cancellation fees. You can cancel from your dashboard anytime. We offer a 30-day money-back guarantee on annual plans.',
-    },
-    {
-        q: 'Do you offer discounts for annual billing?',
-        a: 'Yes, we offer 2 months free on annual plans — that is a 17% discount. For non-profits and educational institutions, we offer additional discounts. Contact sales for details.',
+        a: 'Yes. No lock-in. Annual plans come with a 30-day money-back guarantee.',
     },
 ]
 
-const stats = [
-    { value: '500+', label: 'Companies' },
-    { value: '50K+', label: 'Employees' },
-    { value: '99.9%', label: 'Uptime' },
-    { value: '4.8/5', label: 'Customer rating' },
-]
+// ─────────────────────────────────────────────────────────────
+// SHARED
+// ─────────────────────────────────────────────────────────────
 
-// ═══════════════════════════════════════════════════════════
-// COMPONENTS
-// ═══════════════════════════════════════════════════════════
+const inr = (n) => '₹' + n.toLocaleString('en-IN')
+
+function Logo({ light = false }) {
+    return (
+        <Link to="/" className="flex items-center gap-2.5" aria-label="Hazir home">
+            <span
+                className="grid place-items-center w-8 h-8 rounded-[10px]"
+                style={{ background: light ? '#fff' : 'var(--ink)' }}
+            >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <path
+                        d="M4 9.5l3.2 3.2L14 5.5"
+                        stroke={light ? 'var(--ink)' : '#fff'}
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+                </svg>
+            </span>
+            <span
+                className="display text-[22px] font-bold"
+                style={{ color: light ? '#fff' : 'var(--ink)' }}
+            >
+                hazir
+            </span>
+        </Link>
+    )
+}
+
+function PrimaryBtn({ children, onClick, to, className = '', dark = false }) {
+    const cls = `inline-flex items-center justify-center gap-2 h-11 px-5 rounded-[10px] text-[14px] font-semibold transition-colors ${dark ? 'bg-white text-[var(--ink)] hover:bg-[var(--green-soft)]' : 'bg-[var(--ink)] text-white hover:bg-[var(--green-deep)]'
+        } ${className}`
+    if (to) return <Link to={to} className={cls}>{children}</Link>
+    return <button type="button" onClick={onClick} className={cls}>{children}</button>
+}
+
+function GhostBtn({ children, onClick, to, className = '', dark = false }) {
+    const cls = `inline-flex items-center justify-center gap-2 h-11 px-5 rounded-[10px] text-[14px] font-semibold border transition-colors ${dark
+        ? 'border-white/25 text-white hover:bg-white/10'
+        : 'border-[var(--line)] bg-white text-[var(--ink)] hover:border-[var(--ink)]'
+        } ${className}`
+    if (to) return <Link to={to} className={cls}>{children}</Link>
+    return <button type="button" onClick={onClick} className={cls}>{children}</button>
+}
+
+// ─────────────────────────────────────────────────────────────
+// NAV
+// ─────────────────────────────────────────────────────────────
 
 function Navbar() {
-    const [mobileOpen, setMobileOpen] = useState(false)
+    const [open, setOpen] = useState(false)
     const navigate = useNavigate()
-
-    const navLinks = [
-        { label: 'Features', href: '#features' },
-        { label: 'How it works', href: '#how-it-works' },
+    const links = [
+        { label: 'Product', href: '#product' },
+        { label: 'Payroll', href: '#payroll' },
         { label: 'Pricing', href: '#pricing' },
         { label: 'FAQ', href: '#faq' },
     ]
 
     return (
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/60">
-            <div className="max-w-7xl mx-auto px-4 lg:px-6">
-                <div className="flex items-center justify-between h-16">
-                    {/* Logo */}
-                    <a href="#" className="flex items-center gap-2.5">
-                        <div className="p-2 rounded-lg bg-indigo-600">
-                            <MapPin className="w-4 h-4 text-white" strokeWidth={2.5} />
-                        </div>
-                        <span className="text-lg font-bold tracking-tight text-slate-900">
-                            Hazir
-                        </span>
-                    </a>
-
-                    {/* Desktop Nav */}
-                    <nav className="hidden md:flex items-center gap-8">
-                        {navLinks.map((link) => (
-                            <a
-                                key={link.label}
-                                href={link.href}
-                                className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                            >
-                                {link.label}
-                            </a>
-                        ))}
-                    </nav>
-
-                    {/* CTAs */}
-                    <div className="hidden md:flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate('/login')}
-                            className="text-slate-700 hover:text-slate-900"
-                        >
-                            Log in
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={() => navigate('/login')}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
-                        >
-                            Start free trial
-                            <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        </Button>
-                    </div>
-
-                    {/* Mobile Menu Button */}
+        <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--paper)]/85 backdrop-blur">
+            <div className="max-w-[1180px] mx-auto px-5 h-16 flex items-center justify-between">
+                <Logo />
+                <nav className="hidden md:flex items-center gap-8">
+                    {links.map((l) => (
+                        <a key={l.label} href={l.href} className="text-[14px] font-medium text-[var(--ink-2)] hover:text-[var(--ink)]">
+                            {l.label}
+                        </a>
+                    ))}
+                </nav>
+                <div className="hidden md:flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={() => setMobileOpen(!mobileOpen)}
-                        className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-slate-100"
-                        aria-label="Toggle menu"
+                        onClick={() => navigate('/login')}
+                        className="h-10 px-4 text-[14px] font-semibold text-[var(--ink-2)] hover:text-[var(--ink)]"
                     >
-                        <Menu className="w-5 h-5" strokeWidth={2} />
+                        Log in
                     </button>
+                    <PrimaryBtn to="/get-started" className="!h-10">Start free trial</PrimaryBtn>
                 </div>
-
-                {/* Mobile Menu */}
-                {mobileOpen && (
-                    <div className="md:hidden py-4 border-t border-slate-100 space-y-1">
-                        {navLinks.map((link) => (
-                            <a
-                                key={link.label}
-                                href={link.href}
-                                onClick={() => setMobileOpen(false)}
-                                className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-                            >
-                                {link.label}
-                            </a>
-                        ))}
-                        <div className="pt-2 space-y-2">
-                            <Button
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => navigate('/login')}
-                            >
-                                Log in
-                            </Button>
-                            <Button
-                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
-                                onClick={() => navigate('/login')}
-                            >
-                                Start free trial
-                            </Button>
-                        </div>
-                    </div>
-                )}
+                <button
+                    type="button"
+                    className="md:hidden p-2 -mr-2"
+                    onClick={() => setOpen(!open)}
+                    aria-label="Toggle menu"
+                    aria-expanded={open}
+                >
+                    {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
             </div>
+            {open && (
+                <div className="md:hidden border-t border-[var(--line)] px-5 py-4 space-y-1 bg-[var(--paper)]">
+                    {links.map((l) => (
+                        <a
+                            key={l.label}
+                            href={l.href}
+                            onClick={() => setOpen(false)}
+                            className="block py-2.5 text-[15px] font-medium text-[var(--ink-2)]"
+                        >
+                            {l.label}
+                        </a>
+                    ))}
+                    <div className="pt-3 grid grid-cols-2 gap-2">
+                        <GhostBtn onClick={() => navigate('/login')}>Log in</GhostBtn>
+                        <PrimaryBtn to="/get-started">Start trial</PrimaryBtn>
+                    </div>
+                </div>
+            )}
         </header>
     )
 }
 
-function Hero() {
-    const navigate = useNavigate()
+// ─────────────────────────────────────────────────────────────
+// HERO — live ops board (the one memorable moment)
+// ─────────────────────────────────────────────────────────────
+
+const feedSeed = [
+    { name: 'Ravi Yadav', act: 'Face verified · Salt Lake', t: '09:02', ok: true },
+    { name: 'Meena Das', act: 'Face verified · Howrah', t: '09:04', ok: true },
+    { name: 'Imran Sheikh', act: 'Left zone Park Street', t: '09:11', ok: false },
+    { name: 'Pooja Roy', act: 'Face verified · Salt Lake', t: '09:13', ok: true },
+]
+
+const feedPool = [
+    { name: 'Sanjay Ghosh', act: 'Face verified · Dumdum', ok: true },
+    { name: 'Neha Paul', act: 'Face verified · Howrah', ok: true },
+    { name: 'Arjun Mondal', act: 'Late by 12 min · Salt Lake', ok: false },
+    { name: 'Kavita Singh', act: 'Face verified · Park Street', ok: true },
+]
+
+function LiveBoard() {
+    const [feed, setFeed] = useState(feedSeed.map((f, i) => ({ ...f, id: i })))
+    const [present, setPresent] = useState(84)
+
+    useEffect(() => {
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        if (reduce) return
+        let n = 0
+        const id = setInterval(() => {
+            const next = feedPool[n % feedPool.length]
+            const t = `${String(9 + Math.floor(n / 4)).padStart(2, '0')}:${String(14 + ((n * 3) % 40)).padStart(2, '0')}`
+            setFeed((prev) => [{ ...next, t, id: 100 + n }, ...prev].slice(0, 4))
+            if (next.ok) setPresent((p) => Math.min(p + 1, 96))
+            n += 1
+        }, 2800)
+        return () => clearInterval(id)
+    }, [])
 
     return (
-        <section className="relative overflow-hidden bg-gradient-to-b from-indigo-50/40 via-white to-white">
-            {/* Background decoration */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-indigo-100/50 blur-3xl" />
-                <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-purple-100/40 blur-3xl" />
+        <div
+            className="relative rounded-[20px] border border-[var(--line)] bg-white overflow-hidden"
+            style={{ boxShadow: '0 40px 80px -36px rgba(14,27,22,.4), 0 2px 0 rgba(14,27,22,.04)' }}
+            role="img"
+            aria-label="Hazir live operations dashboard preview showing employee locations and attendance feed"
+        >
+            {/* window chrome */}
+            <div className="flex items-center justify-between px-4 h-11 border-b border-[var(--line)] bg-[#FBFAF7]">
+                <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#E3E1DA]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#E3E1DA]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#E3E1DA]" />
+                </div>
+                <span className="text-[12px] font-medium text-[var(--ink-3)]">Today · Live board</span>
+                <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--green-deep)]">
+                    <span className="relative w-2 h-2 rounded-full bg-[var(--green)] hz-pulse" />
+                    Live
+                </span>
             </div>
 
-            <div className="relative max-w-7xl mx-auto px-4 lg:px-6 pt-20 pb-24 lg:pt-28 lg:pb-32">
-                <div className="max-w-3xl mx-auto text-center">
-                    {/* Badge */}
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 mb-6">
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" strokeWidth={2.5} />
-                        <span className="text-xs font-semibold text-indigo-700 tracking-wide">
-                            AI-powered workforce management
+            <div className="grid md:grid-cols-[1.35fr_1fr]">
+                {/* map */}
+                <div className="relative h-[300px] md:h-[380px] bg-[#EEF1EC] border-b md:border-b-0 md:border-r border-[var(--line)]">
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 520 380" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                        <g fill="#E2E8E1">
+                            <rect x="20" y="24" width="120" height="70" rx="6" />
+                            <rect x="160" y="24" width="90" height="70" rx="6" />
+                            <rect x="290" y="24" width="210" height="70" rx="6" />
+                            <rect x="20" y="124" width="70" height="90" rx="6" />
+                            <rect x="120" y="124" width="150" height="90" rx="6" />
+                            <rect x="300" y="124" width="200" height="90" rx="6" />
+                            <rect x="20" y="244" width="150" height="110" rx="6" />
+                            <rect x="200" y="244" width="100" height="110" rx="6" />
+                            <rect x="330" y="244" width="170" height="110" rx="6" />
+                        </g>
+                        <rect x="120" y="124" width="150" height="90" rx="6" fill="#D5E7D6" />
+                        <path d="M-10 330 C 120 300, 220 350, 340 320 S 520 300, 540 310 L540 390 L-10 390Z" fill="#D6E6EE" />
+                        <circle cx="150" cy="150" r="64" fill="rgba(14,159,110,.10)" stroke="var(--green)" strokeWidth="1.5" strokeDasharray="5 5" />
+                        <circle cx="390" cy="180" r="56" fill="rgba(14,159,110,.10)" stroke="var(--green)" strokeWidth="1.5" strokeDasharray="5 5" />
+                        <path
+                            className="hz-route"
+                            d="M60 300 C 110 250, 130 200, 190 190 S 300 210, 340 170 S 420 110, 470 70"
+                            fill="none"
+                            stroke="var(--ink)"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                        />
+                    </svg>
+
+                    {[
+                        { l: '28%', t: '40%', c: 'var(--green)', label: 'Ravi' },
+                        { l: '74%', t: '46%', c: 'var(--green)', label: 'Meena' },
+                        { l: '90%', t: '18%', c: 'var(--ink)', label: 'Arjun · on route' },
+                        { l: '52%', t: '58%', c: 'var(--amber)', label: 'Imran · outside zone' },
+                    ].map((p, i) => (
+                        <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: p.l, top: p.t }}>
+                            <span className="relative block w-3.5 h-3.5 rounded-full border-2 border-white hz-pulse" style={{ background: p.c }} />
+                            <span className="absolute left-4 -top-1.5 whitespace-nowrap rounded-md bg-white border border-[var(--line)] px-1.5 py-0.5 text-[10.5px] font-medium text-[var(--ink-2)]">
+                                {p.label}
+                            </span>
+                        </div>
+                    ))}
+
+                    <div className="absolute left-3 bottom-3 right-3 md:right-auto md:w-[240px] flex items-start gap-2.5 rounded-xl bg-white border border-[var(--line)] p-3 shadow-sm">
+                        <span className="mt-0.5 grid place-items-center w-6 h-6 rounded-md bg-[var(--amber-soft)]">
+                            <Route className="w-3.5 h-3.5 text-[#B7791F]" />
                         </span>
+                        <div>
+                            <p className="text-[12px] font-semibold leading-tight">Imran left Park Street zone</p>
+                            <p className="text-[11px] text-[var(--ink-3)] mt-0.5">Manager notified · 09:11</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* side panel */}
+                <div className="p-5 flex flex-col">
+                    <div className="flex items-end justify-between">
+                        <div>
+                            <p className="text-[12px] font-medium text-[var(--ink-3)]">Present today</p>
+                            <p className="display tnum text-[40px] leading-none font-bold mt-1">
+                                {present}
+                                <span className="text-[20px] text-[var(--ink-3)] font-semibold"> / 100</span>
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[12px] font-medium text-[var(--ink-3)]">Payroll · Jun</p>
+                            <p className="display tnum text-[18px] font-bold mt-1">₹8,42,300</p>
+                        </div>
                     </div>
 
-                    {/* Headline */}
-                    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-[1.1]">
-                        Field workforce
+                    <div className="mt-4 h-1.5 rounded-full bg-[var(--line)] overflow-hidden">
+                        <div className="h-full rounded-full bg-[var(--green)] transition-all duration-700" style={{ width: `${present}%` }} />
+                    </div>
+
+                    <p className="text-[12px] font-semibold text-[var(--ink-2)] mt-6 mb-2">Activity</p>
+                    <ul className="space-y-1.5 flex-1">
+                        {feed.map((f) => (
+                            <li
+                                key={f.id}
+                                className="hz-feed-item flex items-center gap-2.5 rounded-lg border border-[var(--line)] px-2.5 py-2"
+                            >
+                                <span
+                                    className="grid place-items-center w-7 h-7 rounded-full text-[10px] font-bold shrink-0"
+                                    style={{
+                                        background: f.ok ? 'var(--green-soft)' : 'var(--amber-soft)',
+                                        color: f.ok ? 'var(--green-deep)' : '#B7791F',
+                                    }}
+                                >
+                                    {f.name.split(' ').map((w) => w[0]).join('')}
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-[12px] font-semibold truncate">{f.name}</span>
+                                    <span className="block text-[11px] text-[var(--ink-3)] truncate">{f.act}</span>
+                                </span>
+                                <span className="tnum text-[11px] text-[var(--ink-3)]">{f.t}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function Hero() {
+    return (
+        <section className="relative overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-[560px] grid-bg pointer-events-none" aria-hidden="true" />
+            <div className="relative max-w-[1180px] mx-auto px-5 pt-16 md:pt-24 pb-10">
+                <div className="max-w-[860px]">
+                    <div className="inline-flex items-center gap-2 h-8 pl-2 pr-3.5 rounded-full bg-white border border-[var(--line)] text-[13px] font-medium text-[var(--ink-2)]">
+                        <span className="grid place-items-center w-5 h-5 rounded-full bg-[var(--green-soft)]">
+                            <ScanFace className="w-3 h-3 text-[var(--green-deep)]" strokeWidth={2.5} />
+                        </span>
+                        AI face attendance, now with liveness check
+                    </div>
+
+                    <h1 className="display mt-6 text-[44px] sm:text-[62px] lg:text-[76px] leading-[1.02] font-extrabold">
+                        When your team is in the field,
                         <br />
-                        <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                            management, simplified.
-                        </span>
+                        attendance is on the phone.
                     </h1>
-
-                    {/* Subheadline */}
-                    <p className="text-lg text-slate-600 mt-6 max-w-2xl mx-auto leading-relaxed">
-                        AI face attendance, live route tracking, automated payroll, and leave management —
-                        all in one platform. Built for Indian field teams. Loved by 500+ companies.
+                    <p className="mt-6 text-[18px] leading-[1.6] text-[var(--ink-2)] max-w-[580px]">
+                        AI face attendance, GPS-based live location and one-click payroll at month-end. Built for field teams, with Indian compliance.
                     </p>
+                    <div className="mt-8 flex flex-wrap items-center gap-3">
+                        <PrimaryBtn to="/get-started">
+                            Start free trial <ArrowRight className="w-4 h-4" />
+                        </PrimaryBtn>
+                        <GhostBtn to="/get-started?intent=demo">Book a 20-min demo</GhostBtn>
+                    </div>
+                    <p className="mt-4 text-[13px] text-[var(--ink-3)]">14 days free. No credit card required.</p>
+                </div>
 
-                    {/* CTAs */}
-                    <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
-                        <Button
-                            size="lg"
-                            onClick={() => navigate('/login')}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 h-11 px-6 shadow-lg shadow-indigo-500/20"
-                        >
-                            Start free trial
-                            <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
-                        </Button>
-                        <Button
-                            size="lg"
-                            variant="outline"
-                            className="gap-2 h-11 px-6 bg-white"
-                        >
-                            <Play className="w-4 h-4" strokeWidth={2.5} />
-                            Watch demo
-                        </Button>
+                <div className="mt-14 md:mt-16">
+                    <LiveBoard />
+                </div>
+            </div>
+        </section>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────
+// AI FACE ATTENDANCE — the featured section
+// ─────────────────────────────────────────────────────────────
+
+function PhoneScan() {
+    return (
+        <div className="relative mx-auto w-[280px] sm:w-[300px]">
+            {/* phone body */}
+            <div className="relative rounded-[40px] bg-[#0A120F] p-[10px] border border-white/10" style={{ boxShadow: '0 40px 80px -30px rgba(0,0,0,.6)' }}>
+                <div className="relative rounded-[31px] overflow-hidden bg-[#13211B] aspect-[9/17]">
+                    {/* notch */}
+                    <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-20 h-5 rounded-full bg-[#0A120F] z-20" />
+
+                    {/* status bar */}
+                    <div className="absolute top-3 left-5 right-5 flex items-center justify-between text-[10px] font-semibold text-white/70 z-10">
+                        <span className="tnum">9:02</span>
+                        <span className="flex items-center gap-1">
+                            <WifiOff className="w-3 h-3" />
+                        </span>
                     </div>
 
-                    {/* Trust signals */}
-                    <p className="text-xs text-slate-500 mt-4">
-                        No credit card required · 14-day free trial · Cancel anytime
+                    {/* header */}
+                    <div className="absolute top-12 inset-x-0 text-center z-10">
+                        <p className="text-[13px] font-semibold text-white">Mark attendance</p>
+                        <p className="text-[11px] text-white/55 mt-0.5">Look at the camera</p>
+                    </div>
+
+                    {/* viewfinder */}
+                    <div className="absolute inset-x-0 top-[96px] bottom-[110px] grid place-items-center">
+                        <div className="relative w-[170px] h-[210px]">
+                            {/* face silhouette */}
+                            <svg viewBox="0 0 170 210" className="absolute inset-0 w-full h-full" fill="none" aria-hidden="true">
+                                <defs>
+                                    <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0" stopColor="#2C4A3E" />
+                                        <stop offset="1" stopColor="#1B3129" />
+                                    </linearGradient>
+                                </defs>
+                                <ellipse cx="85" cy="100" rx="56" ry="74" fill="url(#skin)" />
+                                <path d="M30 210 C 30 170, 60 158, 85 158 S 140 170, 140 210Z" fill="url(#skin)" />
+                                {/* mesh */}
+                                <g className="hz-mesh" stroke="var(--green)" strokeWidth="1" strokeLinecap="round">
+                                    <path d="M45 80 Q85 62 125 80" />
+                                    <path d="M40 104 Q85 90 130 104" />
+                                    <path d="M46 128 Q85 120 124 128" />
+                                    <path d="M58 150 Q85 156 112 150" />
+                                    <path d="M85 40 V158" />
+                                    <path d="M62 52 Q60 110 70 152" />
+                                    <path d="M108 52 Q110 110 100 152" />
+                                    <circle cx="65" cy="92" r="3" fill="var(--green)" />
+                                    <circle cx="105" cy="92" r="3" fill="var(--green)" />
+                                    <circle cx="85" cy="118" r="2.5" fill="var(--green)" />
+                                    <circle cx="85" cy="142" r="2.5" fill="var(--green)" />
+                                    <circle cx="45" cy="104" r="2" fill="var(--green)" />
+                                    <circle cx="125" cy="104" r="2" fill="var(--green)" />
+                                </g>
+                            </svg>
+
+                            {/* corner brackets */}
+                            {[
+                                'top-0 left-0 border-t-2 border-l-2 rounded-tl-xl',
+                                'top-0 right-0 border-t-2 border-r-2 rounded-tr-xl',
+                                'bottom-0 left-0 border-b-2 border-l-2 rounded-bl-xl',
+                                'bottom-0 right-0 border-b-2 border-r-2 rounded-br-xl',
+                            ].map((c) => (
+                                <span key={c} className={`hz-bracket absolute w-7 h-7 ${c}`} />
+                            ))}
+
+                            {/* scan line */}
+                            <span
+                                className="hz-scan-line absolute left-1 right-1 h-[2px] rounded-full"
+                                style={{ background: 'linear-gradient(90deg, transparent, var(--green), transparent)', boxShadow: '0 0 14px 2px rgba(14,159,110,.7)' }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* verified card */}
+                    <div className="hz-verify absolute left-4 right-4 bottom-5 rounded-2xl bg-white p-3 flex items-center gap-3 z-10">
+                        <span className="grid place-items-center w-9 h-9 rounded-full bg-[var(--green)] shrink-0">
+                            <Check className="w-5 h-5 text-white" strokeWidth={3} />
+                        </span>
+                        <span className="min-w-0">
+                            <span className="block text-[13px] font-semibold text-[var(--ink)] leading-tight">Ravi Yadav</span>
+                            <span className="block text-[11px] text-[var(--ink-3)] mt-0.5">Marked in 1.8s · On time</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+function FaceAttendance() {
+    const points = [
+        { icon: Fingerprint, t: 'No buddy punching', d: 'Every check-in is matched to the employee’s own face.' },
+        { icon: ShieldCheck, t: 'Liveness check', d: 'Photos, screens and videos are rejected.' },
+        { icon: WifiOff, t: 'Works offline', d: 'Marks on the phone, syncs when the network returns.' },
+        { icon: Zap, t: 'Under 2 seconds', d: 'Look at the camera, that’s it. No hardware needed.' },
+    ]
+
+    return (
+        <section id="face-attendance" className="relative bg-[var(--ink)] text-white overflow-hidden">
+            <div className="absolute inset-0 dark-grid opacity-60 pointer-events-none" aria-hidden="true"
+                style={{ maskImage: 'radial-gradient(ellipse 80% 70% at 70% 40%, #000 20%, transparent 75%)', WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 70% 40%, #000 20%, transparent 75%)' }} />
+            <div className="absolute -right-40 top-10 w-[520px] h-[520px] rounded-full pointer-events-none" aria-hidden="true"
+                style={{ background: 'radial-gradient(circle, rgba(14,159,110,.28), transparent 65%)' }} />
+
+            <div className="relative max-w-[1180px] mx-auto px-5 py-20 lg:py-28 grid lg:grid-cols-[1.05fr_1fr] gap-14 lg:gap-16 items-center">
+                <div className="max-w-[540px]">
+                    <span className="inline-flex items-center gap-2 h-8 px-3 rounded-full border border-white/15 bg-white/5 text-[13px] font-medium text-white/80">
+                        <ScanFace className="w-4 h-4 text-[var(--green)]" />
+                        AI face attendance
+                    </span>
+                    <h2 className="display mt-6 text-[38px] sm:text-[52px] leading-[1.03] font-bold">
+                        Your face is the punch card.
+                    </h2>
+                    <p className="mt-5 text-[17px] leading-[1.65] text-white/70">
+                        Employees look at their phone and attendance is marked. Nobody can mark it for someone else, and it keeps working when the network doesn’t.
                     </p>
 
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mt-16 pt-10 border-t border-slate-200">
-                        {stats.map((stat) => (
-                            <div key={stat.label} className="text-center">
-                                <p className="text-3xl font-bold text-slate-900 tracking-tight">
-                                    {stat.value}
-                                </p>
-                                <p className="text-xs text-slate-500 mt-1 font-medium uppercase tracking-wider">
-                                    {stat.label}
-                                </p>
+                    <div className="mt-10 grid sm:grid-cols-2 gap-x-8 gap-y-7">
+                        {points.map(({ icon: I, t, d }) => (
+                            <div key={t} className="flex items-start gap-3.5">
+                                <span className="mt-0.5 grid place-items-center w-9 h-9 rounded-[10px] bg-white/[.07] border border-white/10 shrink-0">
+                                    <I className="w-[18px] h-[18px] text-[var(--green)]" />
+                                </span>
+                                <div>
+                                    <p className="text-[15px] font-semibold">{t}</p>
+                                    <p className="text-[13.5px] leading-[1.55] text-white/60 mt-1">{d}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
-            </div>
-        </section>
-    )
-}
 
-function Features() {
-    return (
-        <section id="features" className="py-20 lg:py-28 bg-white">
-            <div className="max-w-7xl mx-auto px-4 lg:px-6">
-                {/* Section header */}
-                <div className="max-w-2xl mx-auto text-center mb-16">
-                    <Badge className="bg-indigo-50 text-indigo-700 border-0 mb-4 text-xs font-semibold tracking-wide">
-                        FEATURES
-                    </Badge>
-                    <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-                        Everything your field team needs
-                    </h2>
-                    <p className="text-slate-600 mt-4 text-lg leading-relaxed">
-                        From attendance to payroll — one platform replaces 5 different tools.
-                    </p>
-                </div>
+                <div className="relative">
+                    <PhoneScan />
 
-                {/* Features grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {features.map((feature) => {
-                        const Icon = feature.icon
-                        return (
-                            <div
-                                key={feature.title}
-                                className="group p-6 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                            >
-                                <div className={`inline-flex p-3 rounded-xl ${feature.bg} mb-4`}>
-                                    <Icon className={`w-6 h-6 ${feature.color}`} strokeWidth={2} />
-                                </div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="text-lg font-semibold text-slate-900">
-                                        {feature.title}
-                                    </h3>
-                                </div>
-                                <p className="text-sm text-slate-600 leading-relaxed">
-                                    {feature.desc}
-                                </p>
-                                <div className="mt-4">
-                                    <span className={`text-[11px] font-semibold uppercase tracking-wider ${feature.color}`}>
-                                        {feature.highlight}
-                                    </span>
-                                </div>
-                            </div>
-                        )
-                    })}
+                    {/* floating chips */}
+                    <div className="hidden sm:flex absolute -left-2 lg:-left-10 top-24 items-center gap-2 rounded-xl bg-white text-[var(--ink)] px-3 py-2 shadow-lg">
+                        <span className="w-2 h-2 rounded-full bg-[var(--red)]" />
+                        <span className="text-[12px] font-semibold">Photo detected · Rejected</span>
+                    </div>
+                    <div className="hidden sm:flex absolute -right-2 lg:-right-8 bottom-28 items-center gap-2 rounded-xl bg-white text-[var(--ink)] px-3 py-2 shadow-lg">
+                        <WifiOff className="w-3.5 h-3.5 text-[var(--ink-3)]" />
+                        <span className="text-[12px] font-semibold">Offline · Will sync</span>
+                    </div>
                 </div>
             </div>
         </section>
     )
 }
 
-function HowItWorks() {
+// ─────────────────────────────────────────────────────────────
+// PRODUCT (route tracking)
+// ─────────────────────────────────────────────────────────────
+
+function RouteVisual() {
+    const stops = [
+        { n: 'Depot, Salt Lake', t: '08:30', d: '—' },
+        { n: 'Client · Sector V', t: '09:10', d: '42 min' },
+        { n: 'Client · New Town', t: '10:25', d: '38 min' },
+        { n: 'Client · Rajarhat', t: '11:40', d: '27 min' },
+    ]
     return (
-        <section id="how-it-works" className="py-20 lg:py-28 bg-slate-50">
-            <div className="max-w-7xl mx-auto px-4 lg:px-6">
-                <div className="max-w-2xl mx-auto text-center mb-16">
-                    <Badge className="bg-emerald-50 text-emerald-700 border-0 mb-4 text-xs font-semibold tracking-wide">
-                        HOW IT WORKS
-                    </Badge>
-                    <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-                        Up and running in 4 simple steps
-                    </h2>
-                    <p className="text-slate-600 mt-4 text-lg leading-relaxed">
-                        Setup takes less than a day. No training required.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {howItWorks.map((step, i) => (
-                        <div key={step.step} className="relative">
-                            {/* Connector line */}
-                            {i < howItWorks.length - 1 && (
-                                <div className="hidden lg:block absolute top-8 left-full w-full h-px bg-slate-200 -z-0" />
-                            )}
-
-                            <div className="relative bg-white p-6 rounded-2xl border border-slate-200 h-full">
-                                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-600 text-white font-bold text-lg mb-4">
-                                    {step.step}
-                                </div>
-                                <h3 className="text-base font-semibold text-slate-900 mb-2">
-                                    {step.title}
-                                </h3>
-                                <p className="text-sm text-slate-600 leading-relaxed">
-                                    {step.desc}
-                                </p>
-                            </div>
+        <div className="rounded-[20px] border border-[var(--line)] bg-white p-6 min-h-[320px]" style={{ boxShadow: '0 30px 60px -40px rgba(14,27,22,.3)' }}>
+            <div className="flex items-center justify-between">
+                <p className="text-[13px] font-semibold">Sanjay Ghosh · Today</p>
+                <p className="tnum text-[12px] text-[var(--ink-3)]">38.4 km</p>
+            </div>
+            <ol className="mt-5 relative">
+                <span className="absolute left-[7px] top-2 bottom-2 w-px bg-[var(--line)]" />
+                {stops.map((s, i) => (
+                    <li key={s.n} className="relative pl-8 pb-5 last:pb-0">
+                        <span
+                            className="absolute left-0 top-1 w-[15px] h-[15px] rounded-full border-[3px] border-white"
+                            style={{ background: i === stops.length - 1 ? 'var(--green)' : 'var(--ink)', boxShadow: '0 0 0 1px var(--line)' }}
+                        />
+                        <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-[14px] font-medium">{s.n}</span>
+                            <span className="tnum text-[12px] text-[var(--ink-3)]">{s.t}</span>
                         </div>
+                        <p className="text-[12px] text-[var(--ink-3)] mt-0.5">{s.d === '—' ? 'Start' : `Spent ${s.d} on site`}</p>
+                    </li>
+                ))}
+            </ol>
+        </div>
+    )
+}
+
+function ProductRow({ reverse, icon: Icon, title, body, points, visual }) {
+    return (
+        <div className={`grid lg:grid-cols-2 gap-10 lg:gap-16 items-center ${reverse ? 'lg:[&>*:first-child]:order-2' : ''}`}>
+            <div>{visual}</div>
+            <div className="max-w-[480px]">
+                <span className="inline-grid place-items-center w-10 h-10 rounded-[10px] bg-[var(--green-soft)] text-[var(--green-deep)]">
+                    <Icon className="w-5 h-5" />
+                </span>
+                <h3 className="display text-[30px] sm:text-[36px] leading-[1.1] font-bold mt-5">{title}</h3>
+                <p className="mt-4 text-[16px] leading-[1.65] text-[var(--ink-2)]">{body}</p>
+                <ul className="mt-6 space-y-2.5">
+                    {points.map((p) => (
+                        <li key={p} className="flex items-start gap-2.5 text-[14.5px] text-[var(--ink-2)]">
+                            <Check className="w-4 h-4 mt-0.5 text-[var(--green)] shrink-0" strokeWidth={3} />
+                            {p}
+                        </li>
                     ))}
+                </ul>
+            </div>
+        </div>
+    )
+}
+
+function Product() {
+    return (
+        <section id="product" className="py-20 lg:py-28">
+            <div className="max-w-[1180px] mx-auto px-5">
+                <div className="max-w-[640px] mb-16 lg:mb-24">
+                    <h2 className="display text-[36px] sm:text-[48px] leading-[1.05] font-bold">
+                        One app. From attendance to salary.
+                    </h2>
+                    <p className="mt-5 text-[17px] leading-[1.65] text-[var(--ink-2)]">
+                        Replace the Excel sheet, WhatsApp group and register with one system that works with your team even in the field.
+                    </p>
                 </div>
+
+                <ProductRow
+                    icon={Route}
+                    title="See where your team went all day."
+                    body="Every visit's route, how long they stayed, and what the next stop is. Fuel and time both accounted for clearly."
+                    points={['Live location and full-day history', 'Time spent at every stop', 'Battery-friendly background tracking']}
+                    visual={<RouteVisual />}
+                />
             </div>
         </section>
     )
 }
 
-function Pricing() {
-    const [billingCycle, setBillingCycle] = useState('monthly')
+// ─────────────────────────────────────────────────────────────
+// PAYROLL — light band with real payslip
+// ─────────────────────────────────────────────────────────────
+
+function Payroll() {
+    const rows = [
+        { k: 'Basic', v: 22000 },
+        { k: 'HRA', v: 8800 },
+        { k: 'Overtime · 6 hrs', v: 1350 },
+        { k: 'PF (12%)', v: -2640 },
+        { k: 'ESI', v: -230 },
+        { k: 'Leave deduction · 1 day', v: -1100 },
+    ]
+    const net = rows.reduce((s, r) => s + r.v, 0)
 
     return (
-        <section id="pricing" className="py-20 lg:py-28 bg-white">
-            <div className="max-w-7xl mx-auto px-4 lg:px-6">
-                {/* Section header */}
-                <div className="max-w-2xl mx-auto text-center mb-12">
-                    <Badge className="bg-amber-50 text-amber-700 border-0 mb-4 text-xs font-semibold tracking-wide">
-                        PRICING
-                    </Badge>
-                    <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-                        Simple, transparent pricing
+        <section id="payroll" className="py-20 lg:py-28 bg-white border-y border-[var(--line)]">
+            <div className="max-w-[1180px] mx-auto px-5 grid lg:grid-cols-[1fr_1.05fr] gap-12 lg:gap-20 items-center">
+                <div className="max-w-[500px]">
+                    <h2 className="display text-[36px] sm:text-[48px] leading-[1.05] font-bold">
+                        Payroll is no longer a three-day job.
                     </h2>
-                    <p className="text-slate-600 mt-4 text-lg leading-relaxed">
-                        Start free. Upgrade as you grow. No hidden charges.
+                    <p className="mt-5 text-[17px] leading-[1.65] text-[var(--ink-2)]">
+                        Attendance, overtime and leave go straight into salary. PF, ESI and TDS are deducted automatically. Payslips reach the employee's phone.
                     </p>
-                </div>
-
-                {/* Billing toggle */}
-                <div className="flex justify-center mb-12">
-                    <div className="inline-flex items-center gap-1 bg-slate-100 rounded-xl p-1">
-                        <button
-                            type="button"
-                            onClick={() => setBillingCycle('monthly')}
-                            className={`px-5 py-2 text-sm font-medium rounded-lg transition-colors ${billingCycle === 'monthly'
-                                ? 'bg-white text-slate-900 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                        >
-                            Monthly
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setBillingCycle('yearly')}
-                            className={`px-5 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${billingCycle === 'yearly'
-                                ? 'bg-white text-slate-900 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-900'
-                                }`}
-                        >
-                            Yearly
-                            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                SAVE 17%
-                            </span>
-                        </button>
+                    <div className="mt-8 grid grid-cols-2 gap-4">
+                        {[
+                            { icon: FileSpreadsheet, t: 'Bank-ready export' },
+                            { icon: ShieldCheck, t: 'PF / ESI / TDS' },
+                            { icon: CalendarDays, t: 'Leave sync' },
+                            { icon: Smartphone, t: 'Payslip on phone' },
+                        ].map(({ icon: I, t }) => (
+                            <div key={t} className="flex items-center gap-2.5 text-[14px] text-[var(--ink-2)]">
+                                <span className="grid place-items-center w-8 h-8 rounded-lg bg-[var(--green-soft)]">
+                                    <I className="w-4 h-4 text-[var(--green-deep)]" />
+                                </span>
+                                {t}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                {/* Plans grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    {plans.map((plan) => {
-                        const isEnterprise = plan.id === 'enterprise'
-                        const displayPrice = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice
+                <div className="rounded-[20px] bg-[var(--paper)] border border-[var(--line)] p-6 sm:p-7" style={{ boxShadow: '0 30px 60px -40px rgba(14,27,22,.3)' }}>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-[12px] text-[var(--ink-3)] font-medium">Payslip · June</p>
+                            <p className="display text-[22px] font-bold mt-0.5">Ravi Yadav</p>
+                            <p className="text-[12px] text-[var(--ink-3)] mt-0.5">Field Executive · 26 / 30 days present</p>
+                        </div>
+                        <span className="text-[11px] font-semibold rounded-full bg-[var(--green-soft)] text-[var(--green-deep)] px-2.5 py-1">Processed</span>
+                    </div>
+                    <div className="mt-5 divide-y divide-[var(--line)] border-y border-[var(--line)]">
+                        {rows.map((r) => (
+                            <div key={r.k} className="flex items-center justify-between py-2.5 text-[14px]">
+                                <span className="text-[var(--ink-2)]">{r.k}</span>
+                                <span className={`tnum font-medium ${r.v < 0 ? 'text-[var(--red)]' : ''}`}>
+                                    {r.v < 0 ? '−' : ''}
+                                    {inr(Math.abs(r.v))}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex items-end justify-between mt-5">
+                        <span className="text-[13px] text-[var(--ink-3)] font-medium">Net pay</span>
+                        <span className="display tnum text-[34px] font-bold leading-none">{inr(net)}</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    )
+}
 
-                        return (
-                            <div
-                                key={plan.id}
-                                className={`relative rounded-2xl border p-6 flex flex-col transition-all duration-200 ${plan.popular
-                                    ? 'border-indigo-500 bg-indigo-50/30 shadow-xl shadow-indigo-500/10 lg:scale-105 lg:z-10'
-                                    : 'border-slate-200 bg-white hover:border-slate-300'
+// ─────────────────────────────────────────────────────────────
+// SETUP — genuinely a sequence, so numbering is justified
+// ─────────────────────────────────────────────────────────────
+
+function Setup() {
+    const steps = [
+        { t: 'Create a workspace', d: 'Company, departments and shifts. Two minutes.' },
+        { t: 'Add your team', d: 'Import from CSV or one by one. Assign zones and shifts.' },
+        { t: 'Install the app', d: 'Employees get a link and enrol their face once. No training needed.' },
+        { t: 'Run payroll at month-end', d: 'One click. Payslips go out to everyone.' },
+    ]
+    return (
+        <section className="py-20 lg:py-28">
+            <div className="max-w-[1180px] mx-auto px-5">
+                <h2 className="display text-[32px] sm:text-[42px] leading-[1.08] font-bold max-w-[560px]">
+                    Up and running in a day.
+                </h2>
+                <ol className="mt-12 grid md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10">
+                    {steps.map((s, i) => (
+                        <li key={s.t} className="relative border-t-2 border-[var(--ink)] pt-5">
+                            <span className="display tnum text-[14px] font-bold text-[var(--green-deep)]">{i + 1}</span>
+                            <h3 className="text-[17px] font-semibold mt-2">{s.t}</h3>
+                            <p className="text-[14.5px] leading-[1.6] text-[var(--ink-2)] mt-2">{s.d}</p>
+                        </li>
+                    ))}
+                </ol>
+            </div>
+        </section>
+    )
+}
+
+// ─────────────────────────────────────────────────────────────
+// PRICING
+// ─────────────────────────────────────────────────────────────
+
+function Pricing() {
+    const [yearly, setYearly] = useState(false)
+
+    const priced = useMemo(
+        () =>
+            plans.map((p) => {
+                if (p.monthly === null) return { ...p, price: null }
+                const price = yearly ? p.monthly * YEARLY_MONTHS_PAID : p.monthly
+                const perMonth = yearly ? Math.round(price / 12) : p.monthly
+                return { ...p, price, perMonth }
+            }),
+        [yearly]
+    )
+
+    return (
+        <section id="pricing" className="py-20 lg:py-28 border-t border-[var(--line)] bg-white">
+            <div className="max-w-[1180px] mx-auto px-5">
+                <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                    <div className="max-w-[560px]">
+                        <h2 className="display text-[36px] sm:text-[48px] leading-[1.05] font-bold">
+                            A plan for every team size.
+                        </h2>
+                        <p className="mt-4 text-[16px] leading-[1.65] text-[var(--ink-2)]">
+                            Every plan comes with a 14-day free trial. No setup fee, no lock-in.
+                        </p>
+                    </div>
+
+                    <div className="inline-flex p-1 rounded-[12px] bg-[var(--paper)] border border-[var(--line)] self-start md:self-auto" role="group" aria-label="Billing period">
+                        {[
+                            { v: false, l: 'Monthly' },
+                            { v: true, l: 'Yearly · 2 months free' },
+                        ].map((o) => (
+                            <button
+                                key={o.l}
+                                type="button"
+                                aria-pressed={yearly === o.v}
+                                onClick={() => setYearly(o.v)}
+                                className={`h-9 px-4 rounded-[9px] text-[13px] font-semibold transition-colors ${yearly === o.v ? 'bg-[var(--ink)] text-white' : 'text-[var(--ink-2)] hover:text-[var(--ink)]'
                                     }`}
                             >
-                                {plan.popular && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-wider uppercase">
-                                        Most Popular
-                                    </div>
+                                {o.l}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    {priced.map((p) => {
+                        const ent = p.monthly === null
+                        return (
+                            <div
+                                key={p.id}
+                                className={`relative flex flex-col rounded-[16px] p-5 ${p.popular
+                                    ? 'bg-[var(--ink)] text-white lg:-my-3 lg:py-8'
+                                    : 'bg-[var(--paper)] border border-[var(--line)]'
+                                    }`}
+                                style={p.popular ? { boxShadow: '0 30px 60px -30px rgba(14,27,22,.5)' } : undefined}
+                            >
+                                {p.popular && (
+                                    <span className="absolute -top-3 left-5 rounded-full bg-[var(--green)] text-white text-[11.5px] font-semibold px-3 py-1">
+                                        For field teams
+                                    </span>
                                 )}
 
-                                {/* Header */}
-                                <div className="mb-4">
-                                    <h3 className="text-lg font-semibold text-slate-900">
-                                        {plan.name}
-                                    </h3>
-                                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                        {plan.tagline}
-                                    </p>
-                                </div>
+                                <h3 className="display text-[22px] font-bold">{p.name}</h3>
+                                <p className={`text-[13px] mt-1 min-h-[36px] ${p.popular ? 'text-white/65' : 'text-[var(--ink-3)]'}`}>{p.for}</p>
 
-                                {/* Price */}
-                                <div className="mb-5 pb-5 border-b border-slate-200">
-                                    {isEnterprise ? (
-                                        <div>
-                                            <p className="text-2xl font-bold text-slate-900">
-                                                Custom
-                                            </p>
-                                            <p className="text-xs text-slate-500 mt-1">
-                                                Tailored to your needs
-                                            </p>
-                                        </div>
+                                <div className="mt-5">
+                                    {ent ? (
+                                        <p className="display text-[32px] font-bold leading-none">Custom</p>
                                     ) : (
-                                        <div>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-3xl font-bold text-slate-900 tracking-tight">
-                                                    ₹{displayPrice.toLocaleString('en-IN')}
-                                                </span>
-                                                <span className="text-xs text-slate-500 font-medium">
-                                                    /{billingCycle === 'yearly' ? 'year' : 'month'}
-                                                </span>
-                                            </div>
-                                            <p className="text-[11px] text-slate-500 mt-1.5">
-                                                {plan.maxEmployees
-                                                    ? `Up to ${plan.maxEmployees} employees`
-                                                    : 'Unlimited employees'}
+                                        <>
+                                            <p className="display tnum text-[32px] font-bold leading-none">
+                                                {inr(p.perMonth)}
+                                                <span className={`text-[13px] font-medium ml-1 ${p.popular ? 'text-white/65' : 'text-[var(--ink-3)]'}`}>/month</span>
                                             </p>
-                                        </div>
+                                            <p className={`tnum text-[12px] mt-1.5 ${p.popular ? 'text-white/65' : 'text-[var(--ink-3)]'}`}>
+                                                {yearly ? `${inr(p.price)} billed yearly` : 'billed monthly'}
+                                            </p>
+                                        </>
                                     )}
                                 </div>
 
-                                {/* CTA */}
-                                <Button
-                                    className={`w-full mb-6 gap-1.5 ${plan.popular
-                                        ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                                        : isEnterprise
-                                            ? 'bg-slate-900 hover:bg-slate-800 text-white'
-                                            : 'bg-white border border-slate-300 hover:bg-slate-50 text-slate-900'
+                                <Link
+                                    to={ent ? '/get-started?intent=sales' : `/get-started?plan=${p.id}`}
+                                    className={`mt-5 inline-flex items-center justify-center gap-1.5 h-10 rounded-[10px] text-[13.5px] font-semibold transition-colors ${p.popular
+                                        ? 'bg-white text-[var(--ink)] hover:bg-[var(--green-soft)]'
+                                        : 'bg-[var(--ink)] text-white hover:bg-[var(--green-deep)]'
                                         }`}
-                                    variant={plan.popular || isEnterprise ? 'default' : 'outline'}
                                 >
-                                    {plan.cta}
-                                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={2.5} />
-                                </Button>
+                                    {p.cta}
+                                </Link>
 
-                                {/* Features */}
-                                <div className="space-y-2.5 flex-1">
-                                    {plan.features.map((feature) => (
-                                        <div
-                                            key={feature.name}
-                                            className="flex items-start gap-2 text-xs"
-                                        >
-                                            {feature.included ? (
-                                                <div className="p-0.5 rounded-full bg-emerald-50 shrink-0 mt-0.5">
-                                                    <Check className="w-3 h-3 text-emerald-600" strokeWidth={3} />
-                                                </div>
-                                            ) : (
-                                                <div className="p-0.5 rounded-full bg-slate-100 shrink-0 mt-0.5">
-                                                    <X className="w-3 h-3 text-slate-400" strokeWidth={3} />
-                                                </div>
-                                            )}
-                                            <span
-                                                className={
-                                                    feature.included
-                                                        ? 'text-slate-700'
-                                                        : 'text-slate-400 line-through'
-                                                }
-                                            >
-                                                {feature.name}
-                                            </span>
-                                        </div>
+                                <ul className="mt-6 space-y-2.5 flex-1">
+                                    {p.includes.map((f) => (
+                                        <li key={f} className={`flex items-start gap-2 text-[13px] ${p.popular ? 'text-white/85' : 'text-[var(--ink-2)]'}`}>
+                                            <Check className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${p.popular ? 'text-[var(--green)]' : 'text-[var(--green-deep)]'}`} strokeWidth={3} />
+                                            {f}
+                                        </li>
                                     ))}
-                                </div>
+                                </ul>
                             </div>
                         )
                     })}
                 </div>
 
-                <p className="text-center text-xs text-slate-500 mt-8">
-                    All plans include 14-day free trial · No credit card required · 30-day money-back guarantee
+                <p className="mt-8 text-[13px] text-[var(--ink-3)]">
+                    Prices exclude GST. Yearly plans come with a 30-day money-back guarantee.
                 </p>
             </div>
         </section>
     )
 }
 
-function Testimonials() {
-    return (
-        <section className="py-20 lg:py-28 bg-slate-50">
-            <div className="max-w-7xl mx-auto px-4 lg:px-6">
-                <div className="max-w-2xl mx-auto text-center mb-16">
-                    <Badge className="bg-rose-50 text-rose-700 border-0 mb-4 text-xs font-semibold tracking-wide">
-                        TESTIMONIALS
-                    </Badge>
-                    <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-                        Loved by field teams across India
-                    </h2>
-                    <p className="text-slate-600 mt-4 text-lg leading-relaxed">
-                        Hear from operations managers and founders who switched to Hazir.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {testimonials.map((t) => (
-                        <div
-                            key={t.name}
-                            className="p-6 rounded-2xl bg-white border border-slate-200"
-                        >
-                            {/* Stars */}
-                            <div className="flex items-center gap-0.5 mb-4">
-                                {[...Array(5)].map((_, i) => (
-                                    <Star
-                                        key={i}
-                                        className="w-4 h-4 fill-amber-400 text-amber-400"
-                                        strokeWidth={2}
-                                    />
-                                ))}
-                            </div>
-                            <p className="text-sm text-slate-700 leading-relaxed">
-                                "{t.quote}"
-                            </p>
-                            <div className="flex items-center gap-3 mt-6 pt-6 border-t border-slate-100">
-                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-xs font-bold text-indigo-700">
-                                    {t.initials}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-900">
-                                        {t.name}
-                                    </p>
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                        {t.role}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </section>
-    )
-}
+// ─────────────────────────────────────────────────────────────
+// FAQ
+// ─────────────────────────────────────────────────────────────
 
 function FAQ() {
-    const [openIndex, setOpenIndex] = useState(0)
-
+    const [open, setOpen] = useState(0)
     return (
-        <section id="faq" className="py-20 lg:py-28 bg-white">
-            <div className="max-w-3xl mx-auto px-4 lg:px-6">
-                <div className="text-center mb-12">
-                    <Badge className="bg-cyan-50 text-cyan-700 border-0 mb-4 text-xs font-semibold tracking-wide">
-                        FAQ
-                    </Badge>
-                    <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 tracking-tight">
-                        Questions? We have answers.
-                    </h2>
-                    <p className="text-slate-600 mt-4 text-lg leading-relaxed">
-                        Everything you need to know about Hazir.
+        <section id="faq" className="py-20 lg:py-28">
+            <div className="max-w-[1180px] mx-auto px-5 grid lg:grid-cols-[1fr_1.6fr] gap-10 lg:gap-20">
+                <div>
+                    <h2 className="display text-[34px] sm:text-[42px] leading-[1.08] font-bold">Questions?</h2>
+                    <p className="mt-4 text-[16px] leading-[1.65] text-[var(--ink-2)] max-w-[320px]">
+                        If you don't find the answer here, let us know we reply the same day.
                     </p>
+                    <Link to="/get-started?intent=sales" className="inline-flex items-center gap-1.5 mt-5 text-[14px] font-semibold text-[var(--green-deep)] hover:underline">
+                        Talk to our sales team <ArrowRight className="w-4 h-4" />
+                    </Link>
                 </div>
 
-                <div className="space-y-3">
-                    {faqs.map((faq, i) => {
-                        const isOpen = openIndex === i
+                <div className="divide-y divide-[var(--line)] border-y border-[var(--line)]">
+                    {faqs.map((f, i) => {
+                        const isOpen = open === i
                         return (
-                            <div
-                                key={faq.q}
-                                className="border border-slate-200 rounded-xl overflow-hidden transition-colors hover:border-slate-300"
-                            >
+                            <div key={f.q}>
                                 <button
                                     type="button"
-                                    onClick={() => setOpenIndex(isOpen ? -1 : i)}
-                                    className="w-full flex items-center justify-between gap-4 p-5 text-left bg-white hover:bg-slate-50/50 transition-colors"
+                                    aria-expanded={isOpen}
+                                    onClick={() => setOpen(isOpen ? -1 : i)}
+                                    className="w-full flex items-center justify-between gap-6 py-5 text-left"
                                 >
-                                    <span className="text-sm font-semibold text-slate-900">
-                                        {faq.q}
-                                    </span>
-                                    <ChevronDown
-                                        className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''
-                                            }`}
-                                        strokeWidth={2.5}
-                                    />
+                                    <span className="text-[16px] font-semibold">{f.q}</span>
+                                    {isOpen ? <Minus className="w-4 h-4 shrink-0" /> : <Plus className="w-4 h-4 shrink-0" />}
                                 </button>
-                                {isOpen && (
-                                    <div className="px-5 pb-5 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-4">
-                                        {faq.a}
-                                    </div>
-                                )}
+                                {isOpen && <p className="pb-5 pr-10 text-[15px] leading-[1.7] text-[var(--ink-2)]">{f.a}</p>}
                             </div>
                         )
                     })}
@@ -829,44 +1059,24 @@ function FAQ() {
     )
 }
 
+// ─────────────────────────────────────────────────────────────
+// CTA + FOOTER
+// ─────────────────────────────────────────────────────────────
+
 function FinalCTA() {
-    const navigate = useNavigate()
-
     return (
-        <section className="py-20 lg:py-28 bg-slate-900 relative overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full bg-purple-600/20 blur-3xl" />
-            </div>
-
-            <div className="relative max-w-4xl mx-auto px-4 lg:px-6 text-center">
-                <h2 className="text-3xl lg:text-5xl font-bold text-white tracking-tight leading-tight">
-                    Ready to modernize
-                    <br />
-                    your field operations?
+        <section className="px-5 pb-20 lg:pb-28">
+            <div className="relative overflow-hidden max-w-[1180px] mx-auto rounded-[28px] bg-[var(--green-deep)] text-white px-6 sm:px-14 py-14 sm:py-20 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+                <div className="absolute inset-0 dark-grid opacity-40 pointer-events-none" aria-hidden="true"
+                    style={{ maskImage: 'radial-gradient(ellipse 70% 90% at 100% 0%, #000 10%, transparent 70%)', WebkitMaskImage: 'radial-gradient(ellipse 70% 90% at 100% 0%, #000 10%, transparent 70%)' }} />
+                <h2 className="relative display text-[34px] sm:text-[48px] leading-[1.05] font-bold max-w-[620px]">
+                    Your team's attendance, on the phone from tomorrow.
                 </h2>
-                <p className="text-slate-300 text-lg mt-6 max-w-2xl mx-auto leading-relaxed">
-                    Join 500+ companies who trust Hazir for attendance, tracking, and payroll.
-                    Start your 14-day free trial today.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-3 mt-8">
-                    <Button
-                        size="lg"
-                        onClick={() => navigate('/login')}
-                        className="bg-white text-slate-900 hover:bg-slate-100 gap-2 h-11 px-6"
-                    >
-                        Start free trial
-                        <ArrowRight className="w-4 h-4" strokeWidth={2.5} />
-                    </Button>
-                    <Button
-                        size="lg"
-                        variant="outline"
-                        className="border-slate-600 text-white hover:bg-slate-800 hover:text-white gap-2 h-11 px-6 bg-transparent"
-                    >
-                        <Phone className="w-4 h-4" strokeWidth={2.5} />
-                        Talk to sales
-                    </Button>
+                <div className="relative flex flex-wrap gap-3">
+                    <PrimaryBtn to="/get-started" dark>
+                        Start free trial <ArrowRight className="w-4 h-4" />
+                    </PrimaryBtn>
+                    <GhostBtn to="/get-started?intent=demo" dark>Book a demo</GhostBtn>
                 </div>
             </div>
         </section>
@@ -874,130 +1084,73 @@ function FinalCTA() {
 }
 
 function Footer() {
-    const navigate = useNavigate()
-
-    const footerLinks = {
+    const cols = {
         Product: [
-            { label: 'Features', href: '#features' },
-            { label: 'Pricing', href: '#pricing' },
-            { label: 'How it works', href: '#how-it-works' },
-            { label: 'FAQ', href: '#faq' },
+            { l: 'Face attendance', h: '#face-attendance' },
+            { l: 'Payroll', h: '#payroll' },
+            { l: 'Pricing', h: '#pricing' },
+            { l: 'FAQ', h: '#faq' },
         ],
         Company: [
-            { label: 'About us' },
-            { label: 'Careers' },
-            { label: 'Blog' },
-            { label: 'Contact' },
+            { l: 'Contact', to: '/get-started?intent=sales' },
+            { l: 'Book a demo', to: '/get-started?intent=demo' },
         ],
-        Legal: [
-            { label: 'Privacy Policy' },
-            { label: 'Terms of Service' },
-            { label: 'Refund Policy' },
-            { label: 'Security' },
-        ],
+        Legal: [{ l: 'Privacy Policy' }, { l: 'Terms of Service' }, { l: 'Refund Policy' }],
     }
-
     return (
-        <footer className="bg-white border-t border-slate-200">
-            <div className="max-w-7xl mx-auto px-4 lg:px-6 py-12 lg:py-16">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-                    {/* Brand column */}
-                    <div className="col-span-2 md:col-span-2">
-                        <div className="flex items-center gap-2.5 mb-4">
-                            <div className="p-2 rounded-lg bg-indigo-600">
-                                <MapPin className="w-4 h-4 text-white" strokeWidth={2.5} />
-                            </div>
-                            <span className="text-lg font-bold tracking-tight text-slate-900">
-                                Hazir
-                            </span>
-                        </div>
-                        <p className="text-sm text-slate-600 leading-relaxed max-w-xs">
-                            AI-powered workforce management for Indian field teams. Attendance, tracking, payroll — all in one.
-                        </p>
-                        {/* Social — naya (generic icons) */}
-                        <div className="flex items-center gap-2 mt-5">
-                            <a
-                                href="#"
-                                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                                aria-label="Twitter"
-                            >
-                                <Globe className="w-4 h-4" strokeWidth={2} />
-                            </a>
-                            <a
-                                href="#"
-                                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                                aria-label="LinkedIn"
-                            >
-                                <Building2 className="w-4 h-4" strokeWidth={2} />
-                            </a>
-                            <a
-                                href="mailto:hello@hazir.com"
-                                className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-                                aria-label="Email"
-                            >
-                                <Mail className="w-4 h-4" strokeWidth={2} />
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* Link columns */}
-                    {Object.entries(footerLinks).map(([category, links]) => (
-                        <div key={category}>
-                            <h4 className="text-sm font-semibold text-slate-900 mb-4">
-                                {category}
-                            </h4>
-                            <ul className="space-y-2.5">
-                                {links.map((link) => (
-                                    <li key={link.label}>
-                                        <a
-                                            href={link.href || '#'}
-                                            className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
-                                        >
-                                            {link.label}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Bottom row */}
-                <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-xs text-slate-500">
-                        © {new Date().getFullYear()} Hazir. All rights reserved.
+        <footer className="border-t border-[var(--line)] bg-white">
+            <div className="max-w-[1180px] mx-auto px-5 py-14 grid grid-cols-2 md:grid-cols-[1.6fr_1fr_1fr_1fr] gap-10">
+                <div className="col-span-2 md:col-span-1">
+                    <Logo />
+                    <p className="mt-4 text-[14px] leading-[1.6] text-[var(--ink-3)] max-w-[280px]">
+                        AI face attendance, live tracking and payroll for field teams.
                     </p>
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
-                        <span className="flex items-center gap-1">
-                            <Globe className="w-3 h-3" strokeWidth={2} />
-                            Made in India
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <Shield className="w-3 h-3" strokeWidth={2} />
-                            ISO 27001 Certified
-                        </span>
+                </div>
+                {Object.entries(cols).map(([h, items]) => (
+                    <div key={h}>
+                        <h4 className="text-[13px] font-semibold">{h}</h4>
+                        <ul className="mt-4 space-y-2.5">
+                            {items.map((it) => (
+                                <li key={it.l}>
+                                    {it.to ? (
+                                        <Link to={it.to} className="text-[14px] text-[var(--ink-3)] hover:text-[var(--ink)]">{it.l}</Link>
+                                    ) : (
+                                        <a href={it.h || '#'} className="text-[14px] text-[var(--ink-3)] hover:text-[var(--ink)]">{it.l}</a>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
+                ))}
+            </div>
+            <div className="border-t border-[var(--line)]">
+                <div className="max-w-[1180px] mx-auto px-5 py-5 text-[12.5px] text-[var(--ink-3)]">
+                    © {new Date().getFullYear()} Hazir. All rights reserved.
                 </div>
             </div>
         </footer>
     )
 }
 
-// ═══════════════════════════════════════════════════════════
-// MAIN LANDING PAGE
-// ═══════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+// PAGE
+// ─────────────────────────────────────────────────────────────
 
 export default function Landing() {
     return (
-        <div className="min-h-screen bg-white">
+        <div className="hz min-h-screen">
+            <PageStyles />
             <Navbar />
-            <Hero />
-            <Features />
-            <HowItWorks />
-            <Pricing />
-            <Testimonials />
-            <FAQ />
-            <FinalCTA />
+            <main>
+                <Hero />
+                <FaceAttendance />
+                <Product />
+                <Payroll />
+                <Setup />
+                <Pricing />
+                <FAQ />
+                <FinalCTA />
+            </main>
             <Footer />
         </div>
     )
